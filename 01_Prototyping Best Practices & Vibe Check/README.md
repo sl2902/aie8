@@ -102,14 +102,25 @@ Please make adjustments to your application that you believe will improve the vi
 
 #### 🏗️ Activity #1
 ##### Adjustments Made:
-- _describe adjustment(s) here_
+- Using the developer role, prime the user prompt to stay 'focused' on the query asked
+- For logical and reasoning ability questions, provide an example or two and the desired output to guide the expected response. Request the model to restate the question before answering, to guide the output response
+- For explanatory questions, instruct the model to use simple language, consistent examples, and beginner-friendly analogies
+- For summarization tasks, specify the desired word length and format (e.g., bullet points or a paragrah) and ask for paraphrasing to minimize overlap with the original input
+- For creative story tasks, set word count limits and encourage the use of vivid imagery and emotional
+engagement
+- For paraphrasing tasks, defined the expected tone and style, such as 'funny' or 'professional' and ask for concise yet complete revisions.
 
 ##### Results:
-1. _Comment here how the change(s) impacted the vibe check of your system_
-2. 
-3. 
-4. 
-5.
+1. In the explantory question task, there is a noticeable improvement
+- use of consistent and relatable analogy
+- avoids technical jargon
+- uses bullet points
+- but it didn't adhere to the word limit
+2. In the summarization task, there is a strong improvement given the system prompt:
+- the summary is concise, well within the word limit
+- it captures the core ideas: what is AI, where it is applied, and the ethical considerations
+- the language is neutral which appeals to a general audience
+
 
 
 ## Submitting Your Homework
