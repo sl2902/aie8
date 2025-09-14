@@ -37,15 +37,44 @@ You will be required to submit a link to your GitHub, as well as screenshots of 
 Please evaluate your system on the following questions:
 
 1. Explain the concept of object-oriented programming in simple terms to a complete beginner. 
-    - Aspect Tested:
+    - Aspect Tested: Simplicity of response and clarity of explaination.
+
+    Overall, the response was well-structured and presented in bullet points, which enhances readability. Each key concept was explained with examples, making it easier for beginners to follow. However, there are some areas for improvement:
+
+    - **Slight inconsistency in examples:** The explanation mostly uses a "Car" example consistently, but when discussing encapsulation, it switches to an abstract metaphor ("locking data inside a box"), which may slightly disrupt the flow and learner's understanding.
+    - **Length and complexity:** Some terms could be simplified or explained with less jargon for complete beginners. Eg:- Polymorphmism, could be more beginner-friendly
 2. Read the following paragraph and provide a concise summary of the key points…
-    - Aspect Tested:
+    - Aspect Tested: Summarization with higlighting key ideas
+
+    The question itself appears somewhat open-ended and problematic because it does not specify the length of the paragraph to summarize nor the expected length or format of the summary. To test this, I provided a paragraph about AI as input.
+
+    - **Input Lenght and Density:** The example paragraph is quite compact and already well-written with clearly articulated points. This leaves less room for further improvement.
+    - **Summary Quality:** The app captures the essential points well and omits some minor details or repetitive elements that example had. It condenses the ideas but stays close to the original wording and structure.
+
 3. Write a short, imaginative story (100–150 words) about a robot finding friendship in an unexpected place.
-    - Aspect Tested:
+    - Aspect Tested: Creativity, engagement, and adherence to word length
+
+    The app's response closely fits the prompt by delivering a short, imaginative story of 142 words about a rusty robot finding friendship in an unexpected place.
+
+    - The story feels complete with a with a clear beginning, middle, and satisfying conclusion
+    - The word length is within the specified range (100 - 150) words
+    - The setting and characters are clearly described, allowing readers to envision the scene
+    - Creativity is evident in the imaginative premise and use of dialogue between the robot and the flower
+    - The story incorporates emotional elements that engage the reader and evoke empathy for the robot’s loneliness and eventual joy
+
 4. If a store sells apples in packs of 4 and oranges in packs of 3, how many packs of each do I need to buy to get exactly 12 apples and 9 oranges?
-    - Aspect Tested:
+    - Aspect Tested: Logical reasoning and problem-solving abilities.
+
+    The app’s response to this simple math problem is methodical and clear. It rephrases the question and correctly applies arithmetic operations to find the solution. The response is broken down into two distinct steps: one for apples and one for oranges—making the reasoning easy to follow.
+
+    - The calculations are accurate, providing the correct number of packs needed for each fruit.
+    - The response includes LaTeX formatting, which is useful for clarity if the output medium supports it.
+    - One possible improvement could be to provide control over the output format (e.g., allowing for plain text or formatted math) to match the user interface or context better.
+
 5. Rewrite the following paragraph in a professional, formal tone…
-    - Aspect Tested:
+    - Aspect Tested: Paraphrasing while maintaining a professional and formal tone.
+
+    The app effectively paraphrased a casual paragraph about a successful product launch into a well-balanced, professional statement. It preserved the original meaning while elevating the tone to suit a formal context. The response avoided unnecessary verbosity, keeping the rewritten paragraph clear and concise. Overall, the app demonstrated strong capability in adjusting tone and style appropriately for the task.
 
 This "vibe check" now serves as a baseline, of sorts, to help understand what holes your application has.
 
@@ -59,6 +88,11 @@ This "vibe check" now serves as a baseline, of sorts, to help understand what ho
 
 What are some limitations of vibe checking as an evaluation tool?
 ##### ✅ Answer:
+- Vibe checking is inherently subjective, relying on informal, unstructured evaluation rather than standardized metrics.
+- There is no objective or quantifiable way to measure results, making comparisons and progress tracking difficult.
+- Due to its subjective nature, responses and assessments may vary over time or between different evaluators, reducing consistency and reliability.
+- Vibe checks are not comprehensive; they may miss subtle or less obvious issues, focusing only on glaring or immediate failures.
+- Depending on the subject matter, Vibe check presupposes that the evaluator is familiar with the subject and/or fluent in the language, which can limit its effectiveness in diverse or specialized contexts.
 
 ### 🚧 Advanced Build (OPTIONAL):
 
