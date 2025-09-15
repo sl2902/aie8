@@ -4,11 +4,12 @@ import openai
 from typing import List
 import os
 import asyncio
+from dotenv import load_dotenv
+load_dotenv()
 
 
 class EmbeddingModel:
     def __init__(self, embeddings_model_name: str = "text-embedding-3-small", batch_size: int = 1024):
-        load_dotenv()
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.async_client = AsyncOpenAI()
         self.client = OpenAI()

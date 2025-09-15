@@ -3,6 +3,8 @@ from collections import defaultdict
 from typing import List, Tuple, Callable
 from aimakerspace.openai_utils.embedding import EmbeddingModel
 import asyncio
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
