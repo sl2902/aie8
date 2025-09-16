@@ -102,7 +102,7 @@ Please make adjustments to your application that you believe will improve the vi
 
 #### 🏗️ Activity #1
 ##### Adjustments Made:
-- Using the developer role, prime the user prompt to stay 'focused' on the query asked
+- Using the developer role, prime the model to stay 'focused' on the query asked
 - For logical and reasoning ability questions, provide an example or two and the desired output to guide the expected response. Request the model to restate the question before answering, to guide the output response
 - For explanatory questions, instruct the model to use simple language, consistent examples, and beginner-friendly analogies
 - For summarization tasks, specify the desired word length and format (e.g., bullet points or a paragrah) and ask for paraphrasing to minimize overlap with the original input
