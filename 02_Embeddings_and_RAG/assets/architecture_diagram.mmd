@@ -1,0 +1,45 @@
+graph TD
+    A[Enhanced RAG System] --> B[Data Ingestion Layer]
+    A --> C[Vector Database with Metadata]
+    A --> D[Query & Retrieval Layer]
+
+    %% Data Sources (Enhanced)
+    B --> F[Blog Posts<br/>PMarca Blogs<br/>📄 Text Documents]
+    B --> G[🎥 YouTube Transcripts<br/>NEW ENHANCEMENT<br/>Video Content]
+    
+    %% Processing
+    F --> H[Text Chunking<br/>CharacterTextSplitter]
+    G --> I[🔄 YouTube API<br/>Transcript Extraction<br/>Time-based Chunking]
+    
+    H --> J[OpenAI Embeddings<br/>text-embedding-3-small]
+    I --> J
+    
+    %% Enhanced Vector Database
+    J --> C
+    C --> K[🗂️ Standardized Metadata<br/>✓ source: name<br/>✓ source_type: text/youtube<br/>✓ chunk_index<br/>✓ timestamps]
+    
+    C --> L[📊 Multiple Distance Metrics<br/>✓ Cosine Similarity<br/>✓ Euclidean Distance<br/>✓ Manhattan Distance]
+    
+    %% Query Processing
+    D --> M[User Query]
+    M --> P[📊 Semantic Search<br/>Vector Similarity Calculation]
+    P --> N[🔍 Metadata Filtering<br/>NEW: Filter by Source]
+    N --> Q[📋 Retrieved Context<br/>Top-K Most Similar]
+    
+    Q --> R[Context + Metadata<br/>Source Attribution]
+    
+    %% RAG Pipeline (Retrieval-Augmented Generation)
+    R --> S[🔗 RAG Process<br/>Context + Query Integration]
+    S --> U[🤖 ChatGPT Integration<br/>System + User Prompts<br/>+ Retrieved Context]
+    U --> T[📝 Final Response<br/>with Source Citations]
+
+    %% Styling
+    classDef enhancement fill:#ff6b6b,stroke:#ff4757,color:#fff,stroke-width:3px
+    classDef new fill:#feca57,stroke:#ff9ff3,color:#333,stroke-width:2px
+    classDef process fill:#4285f4,stroke:#357ae8,color:#fff
+    classDef data fill:#6c5ce7,stroke:#5f3dc4,color:#fff
+    
+    class G,I,N,K,L enhancement
+    class B,C,D,E new
+    class J,P,S process
+    class F,M,T data
