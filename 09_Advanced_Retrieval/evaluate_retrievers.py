@@ -1,4 +1,4 @@
-"""Evaluate various retrievers  for a golden test dataset"""
+"""Evaluate various retrievers"""
 import os
 import time
 from typing import List, Dict, Any, Optional, Tuple, Union
@@ -18,9 +18,7 @@ from langchain.retrievers import(
     MultiQueryRetriever,
     EnsembleRetriever,
 )
-import langsmith
-from langchain_core.tracers.context import tracing_v2_enabled
-from langsmith import Client
+from langsmith import Client, tracing_context
 from langchain_community.vectorstores import Qdrant
 from langchain_community.document_loaders import CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -135,8 +133,8 @@ def chat_prompt_template() -> ChatPromptTemplate:
     return ChatPromptTemplate.from_template(RAG_TEMPLATE)
 
 def generate_chat_model() -> ChatOpenAI:
-    """Create a chat model"""
-    return ChatOpenAI(model="gpt-4.1-nano")
+    """Create a chat model with deterministic settings"""
+    return ChatOpenAI(model="gpt-4.1-nano", temperature=0.2, seed=42)
 
 def naive_retriever_chain(
     rag_prompt: ChatPromptTemplate, 
@@ -262,30 +260,37 @@ def create_evaluation_dataset(
     logger.info(f"Make LCEL RAG chain for `{retriever_name}`")
     lcel_chain = make_lcel_chain(rag_prompt, chat_model, retriever)
     
-    # Use context manager to add metadata to all runs
-    with tracing_v2_enabled(
-        project_name=os.environ.get("LANGCHAIN_PROJECT"),
-        metadata={
-            "retriever": retriever_name,
-            "session_id": session_id or EVALUATION_SESSION_ID,
-            "task": "retrieval_evaluation"
-        }
-    ):
-        for doc in dataset:
-            user_input = getattr(doc.eval_sample, "user_input", None) or \
-                getattr(doc.eval_sample, "question", None)
-            if user_input:
-                retrieved_docs = lcel_chain.invoke({"question": user_input})
-                doc.eval_sample.response = cast_text(retrieved_docs["response"])
-                doc.eval_sample.retrieved_contexts = [
-                    context.page_content for context in retrieved_docs["context"]
-                ]
+    # Process each test case with metadata tracking
+    for doc in dataset:
+        user_input = getattr(doc.eval_sample, "user_input", None) or \
+            getattr(doc.eval_sample, "question", None)
+        if user_input:
+            # Invoke with metadata in config (correct way for LangSmith)
+            retrieved_docs = lcel_chain.invoke(
+                {"question": user_input},
+                config={
+                    "metadata": {
+                        "retriever": retriever_name,
+                        "session_id": session_id or EVALUATION_SESSION_ID,
+                        "task": "retrieval_evaluation"
+                    },
+                    "tags": [retriever_name, f"session-{session_id or EVALUATION_SESSION_ID}"]
+                }
+            )
+            doc.eval_sample.response = cast_text(retrieved_docs["response"])
+            doc.eval_sample.retrieved_contexts = [
+                context.page_content for context in retrieved_docs["context"]
+            ]
     
     evaluation_dataset = EvaluationDataset.from_pandas(dataset.to_pandas())
     
     return evaluation_dataset
 
-def evaluate_ragas_dataset(dataset: EvaluationDataset, evaluator_llm: LangchainLLMWrapper) -> Dict[str, Any]:
+def evaluate_ragas_dataset(
+    dataset: EvaluationDataset, 
+    evaluator_llm: LangchainLLMWrapper, 
+    project_name: str = None
+) -> Dict[str, Any]:
     """Evaluate a RAGAS dataset with retriever-specific metrics
     
     Focus on retrieval quality metrics:
@@ -309,65 +314,86 @@ def evaluate_ragas_dataset(dataset: EvaluationDataset, evaluator_llm: LangchainL
     )
 
 def get_langsmith_cost_stats(
+    client: Client,
     project_name: str, 
     retriever_name: str = None,
-    session_id: str = None
+    session_id: str = None,
 ) -> Dict[str, Any]:
-    """Fetch cost statistics from LangSmith for a project
+    """Fetch pre-computed cost and latency statistics from LangSmith
     
     Args:
         project_name: LangSmith project name
-        retriever_name: Optional filter for specific retriever runs
-        session_id: Optional filter for specific evaluation session
+        retriever_name: Optional filter for specific retriever runs (not used for project stats)
+        session_id: Optional filter for specific evaluation session (not used for project stats)
     
     Returns:
-        Dictionary with cost statistics
+        Dictionary with LangSmith's pre-computed statistics including p99, costs, tokens
     """
-    client = Client()
+    filter_conditions = []
     
-    # Get all runs from the project
-    runs = client.list_runs(project_name=project_name)
+    if session_id:
+        filter_conditions.append(f'has(tags, "session-{session_id}")')
     
-    total_cost = 0
-    total_tokens = 0
-    prompt_tokens = 0
-    completion_tokens = 0
-    run_count = 0
+    if retriever_name:
+        filter_conditions.append(f'has(tags, "{retriever_name}")')
     
-    for run in runs:
-        # Filter by session ID if provided (avoids duplicates from previous runs)
-        if session_id:
-            run_metadata = run.extra.get("metadata", {}) if hasattr(run, 'extra') and run.extra else {}
-            if run_metadata.get("session_id") != session_id:
-                continue
-        
-        # Filter by retriever name if provided
-        if retriever_name:
-            run_metadata = run.extra.get("metadata", {}) if hasattr(run, 'extra') and run.extra else {}
-            if run_metadata.get("retriever") != retriever_name:
-                continue
-            
-        # LangSmith stores cost info in the run metadata
-        if hasattr(run, 'total_cost') and run.total_cost:
-            total_cost += run.total_cost
-        
-        # Token usage info
-        if hasattr(run, 'total_tokens') and run.total_tokens:
-            total_tokens += run.total_tokens
-        if hasattr(run, 'prompt_tokens') and run.prompt_tokens:
-            prompt_tokens += run.prompt_tokens
-        if hasattr(run, 'completion_tokens') and run.completion_tokens:
-            completion_tokens += run.completion_tokens
-            
-        run_count += 1
+    filter_str = f'and({", ".join(filter_conditions)})' if filter_conditions else None
+    
+    # Get your tagged runs (the 10 question runs)
+    runs = list(client.list_runs(
+        project_name=project_name,
+        run_type="chain",
+        # filter='eq(name, "ragas evaluation")',
+        # limit=100  # Get all matching runs
+    ))
+    
+    logger.info(f"Found {len(runs)} tagged runs for {retriever_name}")
+    
+    if not runs:
+        return {
+            "total_cost": 0,
+            "total_tokens": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "run_count": 0,
+            "total_latency_seconds": 0,
+            "avg_latency_seconds": 0,
+        }
+    
+    # Step 2: Get unique trace_ids from your runs
+    trace_ids = set(run.trace_id for run in runs)
+    
+    # Step 3: For each trace, find the root "ragas evaluation" run
+    ragas_runs = []
+    for trace_id in trace_ids:
+        # logger.info(f"Processing trace_id: {trace_id}")
+        trace_runs = list(client.list_runs(
+            project_name=project_name,
+            trace_id=trace_id,
+            is_root=True
+        ))
+        ragas_runs.extend([r for r in trace_runs if r.name == "ragas evaluation" or r.name == "RunnableSequence"])
+    
+    logger.info(f"Found {len(ragas_runs)} ragas evaluation runs")
+    # logger.info(ragas_runs)
+    
+    # Step 4: Aggregate costs/latency from ragas evaluation runs
+    total_cost = sum(r.total_cost for r in ragas_runs if r.total_cost)
+    total_tokens = sum(r.total_tokens for r in ragas_runs if r.total_tokens)
+    prompt_tokens = sum(r.prompt_tokens for r in ragas_runs if r.prompt_tokens)
+    completion_tokens = sum(r.completion_tokens for r in ragas_runs if r.completion_tokens)
+    
+    latencies = [(r.end_time - r.start_time).total_seconds() 
+                 for r in ragas_runs if r.end_time and r.start_time]
     
     return {
         "total_cost": total_cost,
         "total_tokens": total_tokens,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
-        "run_count": run_count,
-        "avg_cost_per_run": total_cost / run_count if run_count > 0 else 0,
+        "run_count": len(ragas_runs),
+        "total_latency_seconds": sum(latencies),
+        "avg_latency_seconds": sum(latencies) / len(latencies) if latencies else 0,
     }
 
 
@@ -376,14 +402,15 @@ def main():
     dataset = load_dataset(file_path, metadata_columns)
     
     logger.info("Generate test dataset")
-    generator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4.1"))
+    # Use temperature=0 for deterministic test generation
+    generator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4.1", temperature=0.2, seed=42))
     generator_embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(model="text-embedding-3-small"))
     ds = generate_test_dataset(generator_llm, generator_embeddings, dataset)
-    logger.info(ds.to_pandas()[:2])
+    # logger.info(ds.to_pandas()[:2])
 
     df = ds.to_pandas()
     logger.info(f"Size of test dataset - {len(df)}")
-    logger.info(df["synthesizer_name"].value_counts())
+    # logger.info(df["synthesizer_name"].value_counts())
 
     logger.info("Create Qdrant vector store")
     vector_store = qdrant_vector_store(dataset)
@@ -416,31 +443,48 @@ def main():
         ]),
     }
     
-    evaluator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4.1-mini"))
+    # Use temperature=0 for deterministic evaluation
+    evaluator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4.1-mini", temperature=0))
     
     # Store results for comparison
+    project_name = os.environ.get("LANGCHAIN_PROJECT", "Advanced-Retrieval-Evaluation")
     results_summary = []
-    
+    c  = 0
     for retriever_name in retriever_map:
         logger.info(f"\n{'='*60}")
         logger.info(f"Evaluating: {retriever_name}")
         logger.info(f"{'='*60}")
+
+        client = Client()
+        # client.create_project()
+        # Each retriever should have its own project to capture costs and latency by retriever
+        project_retreiver_name = f"{project_name}-{retriever_name}"
+        os.environ["LANGCHAIN_PROJECT"] = project_retreiver_name
+
+        # logger.info(f"Set LANGCHAIN_PROJECT to: {os.environ['LANGCHAIN_PROJECT']}")
+        logger.info(f"Expected project: {project_retreiver_name}")
         
         # Track timing
         start_time = time.time()
 
         logger.info(f"Generate evaluation dataset for `{retriever_name}`")
-        eval_ds = create_evaluation_dataset(
-            ds,
-            retriever_map[retriever_name],
-            rag_prompt,
-            chat_model,
-            retriever_name=retriever_name,
-            session_id=EVALUATION_SESSION_ID,
-        )
+        # eval_ds = create_evaluation_dataset(
+        #     ds,
+        #     retriever_map[retriever_name],
+        #     rag_prompt,
+        #     chat_model,
+        #     retriever_name=retriever_name,
+        #     session_id=EVALUATION_SESSION_ID,
+        # )
 
-        logger.info(f"Evaluate `{retriever_name}` using RAGAS")
-        eval_results = evaluate_ragas_dataset(eval_ds, evaluator_llm)
+        with tracing_context(project_name=project_retreiver_name, client=client):
+            eval_ds = create_evaluation_dataset(
+                ds, retriever_map[retriever_name], rag_prompt, chat_model,
+                    retriever_name=retriever_name, session_id=EVALUATION_SESSION_ID
+                )
+
+            logger.info(f"Evaluate `{retriever_name}` using RAGAS")
+            eval_results = evaluate_ragas_dataset(eval_ds, evaluator_llm, project_retreiver_name)
         
         # Calculate latency
         latency = time.time() - start_time
@@ -462,43 +506,54 @@ def main():
         
         logger.info(f"Results: {results_dict}")
         logger.info(f"Latency: {latency:.2f}s")
+        # if c >= 1:
+        #     break
+        # c += 1
     
     # Fetch cost data from LangSmith
     logger.info(f"\n{'='*60}")
     logger.info("FETCHING COST DATA FROM LANGSMITH")
     logger.info(f"{'='*60}")
     
-    project_name = os.environ.get("LANGCHAIN_PROJECT", "Advanced-Retrieval-Evaluation")
-    
     try:
         # Get overall project costs for THIS session only
-        overall_cost_stats = get_langsmith_cost_stats(
-            project_name, 
-            session_id=EVALUATION_SESSION_ID
-        )
-        logger.info(f"\nOverall Session Stats (Session ID: {EVALUATION_SESSION_ID}):")
-        logger.info(f"  Total Cost: ${overall_cost_stats['total_cost']:.4f}")
-        logger.info(f"  Total Tokens: {overall_cost_stats['total_tokens']:,}")
-        logger.info(f"  Total Runs: {overall_cost_stats['run_count']}")
+        # overall_cost_stats = get_langsmith_cost_stats(
+        #     project_name, 
+        #     session_id=EVALUATION_SESSION_ID,
+        # )
+        # logger.info(f"\nOverall Session Stats (Session ID: {EVALUATION_SESSION_ID}):")
+        # logger.info(f"  Total Cost: ${overall_cost_stats['total_cost']:.4f}")
+        # logger.info(f"  Total Tokens: {overall_cost_stats['total_tokens']:,}")
+        # logger.info(f"  Total Runs: {overall_cost_stats['run_count']}")
         
         # Try to get per-retriever costs for THIS session
+        client = Client()
+        logger.info(f"Session ID: {EVALUATION_SESSION_ID}")
         for result in results_summary:
             retriever_name = result["retriever"]
+            project_retreiver_name = f"{project_name}-{retriever_name}"
             try:
                 cost_stats = get_langsmith_cost_stats(
-                    project_name, 
+                    client,
+                    project_retreiver_name, 
                     retriever_name=retriever_name,
-                    session_id=EVALUATION_SESSION_ID
+                    session_id=EVALUATION_SESSION_ID,
                 )
-                result["total_cost_usd"] = cost_stats["total_cost"]
-                result["total_tokens"] = cost_stats["total_tokens"]
-                result["num_llm_calls"] = cost_stats["run_count"]
-                logger.info(f"{retriever_name} costs: ${cost_stats['total_cost']:.4f}")
+                logger.info(cost_stats)
+                result["langsmith_total_cost_usd"] = cost_stats["total_cost"]
+                result["langsmith_total_tokens"] = cost_stats["total_tokens"]
+                result["langsmith_llm_calls"] = cost_stats["run_count"]
+                result["langsmith_total_latency"] = cost_stats["total_latency_seconds"]
+                
+                logger.info(f"{retriever_name}:")
+                logger.info(f"  Total Cost: ${cost_stats['total_cost']:.4f}")
+                logger.info(f"  Tokens: {cost_stats['total_tokens']:,}")
             except Exception as e:
-                logger.warning(f"Could not fetch cost for {retriever_name}: {e}")
-                result["total_cost_usd"] = None
-                result["total_tokens"] = None
-                result["num_llm_calls"] = None
+                logger.warning(f"Could not fetch stats for {retriever_name}: {e}")
+                result["langsmith_total_cost_usd"] = None
+                result["langsmith_total_tokens"] = None
+                result["langsmith_llm_calls"] = None
+                result["langsmith_total_latency"] = None
     except Exception as e:
         logger.warning(f"Could not fetch LangSmith costs: {e}")
         logger.info("Continuing without cost data...")
@@ -509,7 +564,7 @@ def main():
     logger.info(f"{'='*60}")
     
     summary_df = pd.DataFrame(results_summary)
-    logger.info(f"\n{summary_df.to_string()}")
+    # logger.info(f"\n{summary_df.to_string()}")
     
     # Save results
     summary_df.to_csv("./data/retriever_evaluation_results.csv", index=False)
