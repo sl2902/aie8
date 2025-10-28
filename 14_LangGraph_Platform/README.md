@@ -57,7 +57,7 @@ What are your thoughts on when you would use a Before interrupt vs. an After int
 ##### ✅ Answer:
 
 The interrupts allows the user to debug the app, test routes and simulate failures/edge cases.<br>
-- Before interrupt
+- Before interrupt<br>
 Use when we want to control or validate inputs:
 >Example on helpfulness node:
 - Inspect the agent's final response
@@ -68,7 +68,7 @@ Use when we want to control or validate inputs:
 - Edit messages before the model call
 - Add context or clarify instructions
 
-- After interrupt
+- After interrupt<br>
 Use when you want to inspect or modify the outputs:
 >Examples on helpfulness node:
 - See the evaluator output
