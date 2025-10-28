@@ -39,7 +39,11 @@ Run the repository and complete the following:
 Compare the `agent` and `agent_helpful` assistants defined in `langgraph.json`. Where does the helpfulness evaluator fit in the graph, and under what condition should execution route back to the agent vs. terminate?
 
 ##### ✅ Answer:
-_(enter answer here)_
+The helpfulness evaluator sits between the `agent` node and the `END` node. After the agent produces a response, control passes to the `helpfulness` node, which checks whether the latest reply is sufficiently helpful.
+
+- If the evaluator detects a "`HELPFULNESS:Y`" signal, execution routes to `END`, terminating the loop.
+- If it finds "`HELPFULNESS:N`", it routes back to the `agent` node for an improved response.
+- A loop safeguard ensures that if more than 10 iterations occur, the evaluator emits "`HELPFULNESS:END`", forcing termination to prevent infinite looping.
 
 #### 🏗️ Activity #1 Debugging A Graph
 
@@ -49,8 +53,30 @@ Select the `agent_with_helpfulness` and set one or more interrupts (at least one
 
 What are your thoughts on when you would use a Before interrupt vs. an After interrupt?
 
+
 ##### ✅ Answer:
-_(enter answer here)_
+
+The interrupts allows the user to debug the app, test routes and simulate failures/edge cases.<br>
+- Before interrupt
+Use when we want to control or validate inputs:
+>Example on helpfulness node:
+- Inspect the agent's final response
+- Manually override to return early without running the evaluator
+- Confirm response quality before the evaluator
+
+>Example of agent node:
+- Edit messages before the model call
+- Add context or clarify instructions
+
+- After interrupt
+Use when you want to inspect or modify the outputs:
+>Examples on helpfulness node:
+- See the evaluator output
+- Force a different decision to test routing
+
+>Examples on agent node:
+- Inspect the model output(tool calls, output)
+- Modify the response before it goes to tools or helpfulness
 
 
 
