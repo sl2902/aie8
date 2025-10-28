@@ -49,8 +49,7 @@ def helpfulness_node(state: AgentState) -> Dict[str, Any]:
     initial_query = state["messages"][0]
     final_response = state["messages"][-1]
 
-    prompt_template = """
-  Given an initial query and a final response, determine if the final response is extremely helpful or not. Please indicate helpfulness with a 'Y' and unhelpfulness as an 'N'.
+    prompt_template = """Given an initial query and a final response, determine if the final response is extremely helpful or not. Please indicate helpfulness with a 'Y' and unhelpfulness as an 'N'.
 
   Initial Query:
   {initial_query}
@@ -72,6 +71,13 @@ def helpfulness_node(state: AgentState) -> Dict[str, Any]:
     )
 
     decision = "Y" if "Y" in helpfulness_response else "N"
+    # decision = ''
+    # if 'Y' in helpfulness_response:
+    #     decision = 'Y'
+    # elif 'RETRY' in helpfulness_response:
+    #     decision = 'RETRY'
+    # elif 'FAIL' in helpfulness_response:
+    #     decision = 'FAIL'
     return {"messages": [AIMessage(content=f"HELPFULNESS:{decision}")]}
 
 
@@ -85,6 +91,10 @@ def helpfulness_decision(state: AgentState):
     text = getattr(last, "content", "")
     if "HELPFULNESS:Y" in text:
         return "end"
+    # if "HELPFULNESS:RETRY" in text:
+    #     return "continue"
+    # if "HELPFULNESS:FAIL" in text:
+    #     return "end"
     return "continue"
 
 
