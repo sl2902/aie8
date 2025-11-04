@@ -1,0 +1,7 @@
+.DS_Store
+.env
+content/
+__pycache__/
+notebooks/.ipynb_checkpoints/
+notebooks/__pycache__/  
+notebooks/cache/
