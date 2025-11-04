@@ -23,6 +23,6 @@ dependencies = [
     "guardrails-ai==0.6.7",
     "click==8.0.0",
     "transformers>=4.11.3",
-    "torch>=2.1.1",
+    "torch>=2.4.0",
     "accelerate>=1.11.0",
 ]
