@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - GUARDRAILS_TOKEN=${GUARDRAILS_TOKEN}
+    ports:
+      - "8888:8888"
+    volumes:
+      # Mount your notebooks and data
+      # - ./notebooks:/app/notebooks
+      # - ./data:/app/data
+      - venv:/app/.venv
+      # Mount the parent directory to access langgraph_agent_lib
+      - ..:/app/parent
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      # Add any additional environment variables you need
+      - JUPYTER_ENABLE_LAB=yes
+    command: uv run jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+
+volumes:
+  venv:
